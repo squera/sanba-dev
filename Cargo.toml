@@ -1,0 +1,15 @@
+[workspace]
+members = [
+  "api",
+  "domain",
+  "infrastructure",
+  "application",
+  "shared",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Luca Dematté"]
+description = "Sistema per la gestione della palestra Sanbapolis"

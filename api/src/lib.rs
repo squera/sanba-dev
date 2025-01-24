@@ -1,0 +1,9 @@
+pub mod booking_handlers;
+pub mod club_handlers;
+pub mod game_handlers;
+pub mod person_handlers;
+pub mod recorded_data_handlers;
+pub mod recording_session_handlers;
+pub mod team_handlers;
+pub mod training_handlers;
+pub mod user_handlers;

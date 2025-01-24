@@ -1,0 +1,4 @@
+[default]
+address = "127.0.0.1"   # Change to "0.0.0.0" to open the server to LAN
+port = 8000
+log_level = "normal"    # Change to "debug" to see trace messages

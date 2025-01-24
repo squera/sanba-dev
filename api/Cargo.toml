@@ -1,0 +1,19 @@
+[package]
+name = "api"
+version = "0.1.0"
+edition = "2021"
+authors = ["Luca Dematté"]
+description = "API per l'interazione con il backend del sistema di gestione della palestra del Sanbapolis"
+
+[dependencies]
+domain = { path = "../domain" }
+application = { path = "../application" }
+infrastructure = { path = "../infrastructure" }
+shared = { path = "../shared" }
+
+rocket = "0.5.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+dotenvy = "0.15.7"
+utoipa = { version = "5.1.1", features = ["rocket_extras"] }
+utoipa-swagger-ui = { version = "8.0.1", features = ["rocket"] }
