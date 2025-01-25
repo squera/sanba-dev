@@ -1,6 +1,6 @@
 use diesel::{prelude::*, result::Error};
 use domain::models::{
-    full_tables::{Person, User, UserInvitation},
+    full_tables::{User, UserInvitation},
     insertions::NewPerson,
     others::SignupRequest,
 };
@@ -8,6 +8,7 @@ use infrastructure::establish_connection;
 use log::trace;
 use rocket::http::Status;
 use shared::response_models::{ApiError, ApiErrorType};
+use validator::Validate;
 
 use crate::{
     authentication::password::hash_password,
@@ -15,6 +16,8 @@ use crate::{
 };
 
 pub fn create_user(request: SignupRequest) -> Result<User, ApiError> {
+    request.validate()?;
+
     // capire se l'access code esiste ed è valido
     //      se è valido, aggiornare i dati della persona e inserire l'utente
     //      se non è valido ma esiste, restituire un errore
@@ -38,14 +41,13 @@ pub fn create_user(request: SignupRequest) -> Result<User, ApiError> {
                 Ok(mut res) => match res.get_mut(0) {
                     Some(invitation) => {
                         trace!("Access code is valid. Invitation found: {:#?}", invitation);
-                        let updated_person = Person {
-                            id: invitation.person_id,
+                        let updated_person = NewPerson {
                             name: request.name,
                             surname: request.surname,
                         };
 
                         trace!("Updating person: {:#?}", updated_person);
-                        update_person(updated_person)?;
+                        update_person(invitation.person_id, updated_person)?;
                         trace!("Person updated successfully.");
 
                         let new_user = User {

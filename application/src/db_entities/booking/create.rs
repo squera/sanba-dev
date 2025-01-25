@@ -7,6 +7,7 @@ use domain::models::{
 use infrastructure::establish_connection;
 use rocket::http::Status;
 use shared::response_models::{ApiError, ApiErrorType};
+use validator::Validate;
 
 use crate::{
     authentication::Claims,
@@ -83,6 +84,8 @@ pub fn authorize_create_booking(
 
 /// Inserisce una nuova prenotazione nel database e la restituisce.
 pub fn create_booking(new_booking_data: NewBookingData) -> Result<BookingWithEvent, ApiError> {
+    new_booking_data.validate()?;
+
     let booking = create_empty_booking(new_booking_data.booking)?;
 
     if let Some(event) = new_booking_data.event {

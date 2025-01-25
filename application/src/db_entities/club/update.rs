@@ -3,6 +3,7 @@ use domain::models::full_tables::{SportsClub, UserClub};
 use infrastructure::establish_connection;
 use rocket::http::Status;
 use shared::response_models::{ApiError, ApiErrorType};
+use validator::Validate;
 
 use crate::{
     authentication::Claims,
@@ -43,6 +44,8 @@ pub fn authorize_update_club(
 
 pub fn update_club(new_club: SportsClub) -> Result<SportsClub, ApiError> {
     let connection = &mut establish_connection();
+
+    new_club.validate()?;
 
     let updated_club = new_club.save_changes::<SportsClub>(connection)?;
 

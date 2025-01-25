@@ -3,6 +3,7 @@ use domain::models::{full_tables::Team, insertions::NewTeam};
 use infrastructure::establish_connection;
 use rocket::http::Status;
 use shared::response_models::{ApiError, ApiErrorType};
+use validator::Validate;
 
 use crate::{
     authentication::Claims,
@@ -39,6 +40,8 @@ pub fn authorize_create_team(requesting_user: Claims, new_team: NewTeam) -> Resu
 /// Inserisce una nuova squadra nel database e la restituisce.
 pub fn create_team(new_team: NewTeam) -> Result<Team, ApiError> {
     use domain::schema::team;
+
+    new_team.validate()?;
 
     let connection = &mut establish_connection();
 

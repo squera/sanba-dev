@@ -8,6 +8,7 @@ use domain::models::{
 use infrastructure::establish_connection;
 use rocket::http::Status;
 use shared::response_models::{ApiError, ApiErrorType};
+use validator::Validate;
 
 use crate::{
     authentication::Claims,
@@ -44,7 +45,7 @@ pub fn update_booking_and_event(
 ) -> Result<BookingWithEvent, ApiError> {
     use domain::schema::{booking, game, training};
 
-    // TODO effettuare controlli sui dati forniti
+    booking_data.validate()?;
 
     let connection = &mut establish_connection();
 

@@ -10,7 +10,9 @@ use diesel::serialize::{self, Output, ToSql};
 use diesel::sql_types::Text;
 use diesel::AsExpression;
 use serde::{Deserialize, Serialize};
+use shared::validation::is_valid_phone;
 use utoipa::ToSchema;
+use validator::Validate;
 
 /// Amministratore
 #[derive(
@@ -469,15 +471,18 @@ pub struct Screenshot {
     Serialize,
     Deserialize,
     ToSchema,
+    Validate,
 )]
 #[diesel(table_name = crate::schema::sports_club)]
 #[diesel(primary_key(vat_number))]
 #[diesel(check_for_backend(diesel::mysql::Mysql))]
 pub struct SportsClub {
+    #[validate(length(equal = 11))]
     pub vat_number: String,
     pub name: String,
     pub address: Option<String>,
     pub city: Option<String>,
+    #[validate(custom(function = "is_valid_phone"))]
     pub phone: Option<String>,
 }
 

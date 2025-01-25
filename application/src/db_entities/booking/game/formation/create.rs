@@ -7,6 +7,7 @@ use domain::models::{
 use infrastructure::establish_connection;
 use rocket::http::Status;
 use shared::response_models::{ApiError, ApiErrorType};
+use validator::Validate;
 
 use crate::db_entities::booking::game::formation::read::get_formation_player_list;
 
@@ -46,6 +47,8 @@ pub fn create_formation_player_tags(
     players_data: Vec<FormationPlayerTagsData>,
 ) -> Result<Vec<FormationPlayerWithTags>, ApiError> {
     use domain::schema::{formation_player, formation_player_tag};
+
+    players_data.validate()?;
 
     let mut formation_players: Vec<NewFormationPlayer> = vec![];
     let mut formation_player_tags: Vec<FormationPlayerTag> = vec![];

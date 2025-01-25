@@ -2,12 +2,14 @@ use diesel::prelude::*;
 use diesel::result::Error;
 use domain::models::{
     full_tables::{Administrator, Coach, CoachTeam, Fan, Person, Player, PlayerTeam},
-    insertions::{NewCoachTeam, NewPlayerTeam},
+    insertions::{NewCoachTeam, NewPerson, NewPlayerTeam},
     others::{JoinInfo, LeaveInfo, NewProfile, PersonWithUser},
+    WithId,
 };
 use infrastructure::establish_connection;
 use rocket::http::Status;
 use shared::response_models::{ApiError, ApiErrorType};
+use validator::Validate;
 
 use crate::{
     authentication::Claims,
@@ -21,14 +23,15 @@ use crate::{
 
 pub fn authorize_update_person(
     requesting_user: Claims,
-    new_person: Person,
+    person_id: i64,
+    new_person: NewPerson,
 ) -> Result<Person, ApiError> {
     let mut is_authorized = false;
     if is_administrator(requesting_user.subject_id)? {
         is_authorized = true;
     } else {
-        if is_person_with_user(new_person.id)? {
-            if is_same_user(requesting_user.subject_id, new_person.id) {
+        if is_person_with_user(person_id)? {
+            if is_same_user(requesting_user.subject_id, person_id) {
                 is_authorized = true;
             }
         } else {
@@ -37,7 +40,7 @@ pub fn authorize_update_person(
     }
 
     if is_authorized {
-        return update_person(new_person);
+        return update_person(person_id, new_person);
     } else {
         return Err(ApiError {
             http_status: Status::Forbidden,
@@ -45,14 +48,18 @@ pub fn authorize_update_person(
             error_type: ApiErrorType::AuthorizationError,
             message: format!(
                 "Error - User {} is not authorized to update person {}",
-                requesting_user.subject_id, new_person.id
+                requesting_user.subject_id, person_id
             ),
         });
     }
 }
 
-pub(crate) fn update_person(new_person: Person) -> Result<Person, ApiError> {
+pub(crate) fn update_person(person_id: i64, new_person: NewPerson) -> Result<Person, ApiError> {
     let connection = &mut establish_connection();
+
+    new_person.validate()?;
+
+    let person = new_person.to_identified(person_id);
 
     let updated_person: Person = match connection.transaction::<_, Error, _>(|connection| {
         // diesel::update(person)
@@ -62,7 +69,7 @@ pub(crate) fn update_person(new_person: Person) -> Result<Person, ApiError> {
 
         // person.find(new_person.id).first(connection)
 
-        new_person.save_changes(connection)
+        person.save_changes(connection)
     }) {
         Ok(p) => p,
         Err(err) => {
@@ -116,6 +123,8 @@ pub(crate) fn add_profile(
     new_profile: NewProfile,
 ) -> Result<PersonWithUser, ApiError> {
     use domain::schema::{administrator, coach, fan, player};
+
+    new_profile.validate()?;
 
     let connection = &mut establish_connection();
 
@@ -191,6 +200,8 @@ pub fn authorize_join_team(
 
 pub(crate) fn join_team(person_id: i64, team_id: i64, join_info: JoinInfo) -> Result<(), ApiError> {
     use domain::schema::{coach_team, player_team};
+
+    join_info.validate()?;
 
     let connection = &mut establish_connection();
 
@@ -270,6 +281,8 @@ pub(crate) fn leave_team(
     leave_info: LeaveInfo,
 ) -> Result<(), ApiError> {
     use domain::schema::{coach_team, player_team};
+
+    leave_info.validate()?;
 
     let connection = &mut establish_connection();
 

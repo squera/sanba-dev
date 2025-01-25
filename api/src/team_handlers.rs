@@ -131,7 +131,7 @@ pub fn update_team_handler(
 ) -> Result<Json<Team>, ApiError> {
     let key = key?;
 
-    let res = authorize_update_team(key.claims, team.into_inner().to_identified(team_id))?;
+    let res = authorize_update_team(key.claims, team_id, team.into_inner())?;
     Ok(Json(res))
 }
 

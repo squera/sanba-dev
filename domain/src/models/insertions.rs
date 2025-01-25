@@ -12,7 +12,7 @@ use super::{
 };
 use shared::validation::is_future_datetime;
 
-#[derive(Debug, Queryable, Selectable, Insertable, Deserialize, ToSchema)]
+#[derive(Debug, Queryable, Selectable, Insertable, Deserialize, ToSchema, Validate)]
 #[diesel(table_name = crate::schema::person)]
 #[diesel(check_for_backend(diesel::mysql::Mysql))]
 pub struct NewPerson {
@@ -79,7 +79,7 @@ impl WithId for NewSportsClub {
     }
 }
 
-#[derive(Debug, Selectable, Insertable, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Selectable, Insertable, Serialize, Deserialize, ToSchema, Validate)]
 #[diesel(table_name = crate::schema::team)]
 #[diesel(check_for_backend(diesel::mysql::Mysql))]
 pub struct NewTeam {
@@ -197,14 +197,17 @@ pub struct NewFormationPlayer {
     pub exit_minute: Option<NaiveTime>,
 }
 
-#[derive(Debug, Selectable, Insertable, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Selectable, Insertable, Serialize, Deserialize, ToSchema, Validate)]
 #[diesel(table_name = crate::schema::recording_session)]
 #[diesel(check_for_backend(diesel::mysql::Mysql))]
+#[validate(schema(function = "validate_recording_session"))]
 pub struct NewRecordingSession {
     pub author_id: i64,
     #[schema(value_type = String, format = DateTime)]
+    #[validate(custom(function = "is_future_datetime"))]
     pub start_datetime: NaiveDateTime,
     #[schema(value_type = String, format = DateTime)]
+    #[validate(custom(function = "is_future_datetime"))]
     pub end_datetime: NaiveDateTime,
     pub booking_id: i64,
 }
@@ -220,5 +223,17 @@ impl WithId for NewRecordingSession {
             end_datetime: self.end_datetime,
             booking_id: self.booking_id,
         }
+    }
+}
+
+fn validate_recording_session(data: &NewRecordingSession) -> Result<(), ValidationError> {
+    if data.start_datetime >= data.end_datetime {
+        Err(
+            ValidationError::new("invalid_recording_session_period").with_message(Cow::Borrowed(
+                "The start datetime must be before the end datetime",
+            )),
+        )
+    } else {
+        Ok(())
     }
 }

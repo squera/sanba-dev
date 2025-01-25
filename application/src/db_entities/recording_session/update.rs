@@ -8,6 +8,7 @@ use domain::models::{
 };
 use infrastructure::establish_connection;
 use shared::response_models::ApiError;
+use validator::Validate;
 
 use crate::db_entities::recording_session::read::find_recording_session;
 
@@ -16,6 +17,8 @@ pub fn update_recording_session_and_cameras(
     recording_session_data: RecordingSessionData,
 ) -> Result<RecordingSessionWithCameras, ApiError> {
     use domain::schema::camera_session;
+
+    recording_session_data.validate()?;
 
     let connection = &mut establish_connection();
 

@@ -278,7 +278,7 @@ pub fn update_person_handler(
 ) -> Result<Json<Person>, ApiError> {
     let key = key?;
 
-    let res = authorize_update_person(key.claims, person.into_inner().to_identified(person_id))?;
+    let res = authorize_update_person(key.claims, person_id, person.into_inner())?;
     Ok(Json(res))
 }
 

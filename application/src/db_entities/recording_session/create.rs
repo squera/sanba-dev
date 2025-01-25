@@ -8,6 +8,7 @@ use domain::models::{
 use infrastructure::establish_connection;
 use rocket::http::Status;
 use shared::response_models::{ApiError, ApiErrorType};
+use validator::Validate;
 
 use crate::db_entities::recording_session::read::find_recording_session;
 
@@ -15,6 +16,8 @@ pub fn create_recording_session_with_cameras(
     session_data: RecordingSessionData,
 ) -> Result<RecordingSessionWithCameras, ApiError> {
     use domain::schema::camera_session;
+
+    session_data.validate()?;
 
     let recording_session = create_recording_session(session_data.recording_session)?;
 

@@ -7,6 +7,7 @@ use rocket::{
 };
 use serde::Serialize;
 use utoipa::ToSchema;
+use validator::ValidationErrorsKind;
 
 // Struttura per creare delle risposte con dati JSON e uno stato HTTP
 // #[derive(Debug)]
@@ -136,4 +137,46 @@ impl From<diesel::result::Error> for ApiError {
             },
         };
     }
+}
+
+impl From<validator::ValidationErrors> for ApiError {
+    fn from(value: validator::ValidationErrors) -> Self {
+        let message = format!(
+            "Validation errors: {}",
+            pretty_print_validation_errors(&value)
+        );
+        return ApiError {
+            error_code: 123,
+            error_type: ApiErrorType::ApplicationError,
+            message,
+            http_status: Status::BadRequest,
+        };
+    }
+}
+
+fn pretty_print_validation_errors(errors: &validator::ValidationErrors) -> String {
+    let mut message = String::new();
+    for (field, error) in errors.errors() {
+        message.push_str(&format!("Field '{}': ", field));
+        match error {
+            ValidationErrorsKind::Field(errors) => {
+                for e in errors {
+                    message.push_str(&format!("{:?}\n", e.message));
+                }
+            }
+            ValidationErrorsKind::Struct(errors) => {
+                message.push_str(&format!("{}\n", pretty_print_validation_errors(errors)));
+            }
+            ValidationErrorsKind::List(e) => {
+                for (index, error) in e {
+                    message.push_str(&format!(
+                        "Index {}: {}\n",
+                        index,
+                        pretty_print_validation_errors(error)
+                    ));
+                }
+            }
+        }
+    }
+    message
 }

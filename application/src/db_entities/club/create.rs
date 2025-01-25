@@ -2,12 +2,15 @@ use diesel::prelude::*;
 use domain::models::full_tables::SportsClub;
 use infrastructure::establish_connection;
 use shared::response_models::ApiError;
+use validator::Validate;
 
 use crate::db_entities::club::update::add_club_responsible;
 
 /// Inserisce una nuova società sportiva nel database e la restituisce.
 pub fn create_club(new_club: SportsClub, user_id: i64) -> Result<SportsClub, ApiError> {
     use domain::schema::sports_club;
+
+    new_club.validate()?;
 
     let connection = &mut establish_connection();
 

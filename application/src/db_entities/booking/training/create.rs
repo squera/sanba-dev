@@ -8,6 +8,7 @@ use domain::models::{
 use infrastructure::establish_connection;
 use rocket::http::Status;
 use shared::response_models::{ApiError, ApiErrorType};
+use validator::Validate;
 
 use crate::db_entities::booking::training::read::get_training_player_list;
 
@@ -45,6 +46,8 @@ pub fn create_training_player_tags(
     players_data: Vec<TrainingPlayerTagsData>,
 ) -> Result<Vec<TrainingPlayerWithTags>, ApiError> {
     use domain::schema::{training_player, training_player_tag};
+
+    players_data.validate()?;
 
     let mut training_players: Vec<NewTrainingPlayer> = vec![];
     let mut training_player_tags: Vec<TrainingPlayerTag> = vec![];

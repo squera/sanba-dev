@@ -4,9 +4,12 @@ use domain::models::{full_tables::User, others::LoginRequest};
 use infrastructure::establish_connection;
 use rocket::http::Status;
 use shared::response_models::{ApiError, ApiErrorType};
+use validator::Validate;
 
 pub fn login_user(req: LoginRequest) -> Result<String, ApiError> {
     use domain::schema::user;
+
+    req.validate()?;
 
     let result_user = user::table
         .filter(user::email.eq(&req.email))

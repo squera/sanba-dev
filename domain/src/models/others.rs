@@ -4,7 +4,7 @@ use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use serde::{Deserialize, Serialize};
 use shared::validation::{is_future_datetime, is_past_date, is_past_datetime, is_valid_phone};
 use utoipa::ToSchema;
-use validator::{Validate, ValidationError};
+use validator::{Validate, ValidationError, ValidationErrors};
 
 use super::{
     full_tables::{Booking, Camera, Game, Person, RecordingSession, Team, Training, User},
@@ -54,15 +54,16 @@ pub struct SignupRequest {
 }
 
 // Se i profili necessitano di parametri, sostituire il bool con una struttura apposita
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Validate)]
 pub struct NewProfile {
     pub administrator: Option<bool>,
+    #[validate(nested)]
     pub coach: Option<NewCoachProfile>,
     pub fan: Option<bool>,
     pub player: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Validate)]
 pub struct NewCoachProfile {
     pub role: String,
     // Aggiungere altri campi se necessario
@@ -96,7 +97,7 @@ fn validate_join_info(join_info: &JoinInfo) -> Result<(), ValidationError> {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Validate)]
 pub struct LeaveInfo {
     /// 0 -> giocatore, 1 -> allenatore
     pub role: u8,
@@ -142,53 +143,8 @@ pub struct NewBookingData {
 }
 
 fn validate_booking_data(data: &NewBookingData) -> Result<(), ValidationError> {
-    if data.event.is_none() {
-        return Ok(());
-    }
-
-    match &data.event {
-        Some(event) => match event {
-            NewBookingEvent::Game(game_data) => {
-                if game_data.visiting_team_id.is_none() {
-                    Err(ValidationError::new("missing_visiting_team")
-                        .with_message(Cow::Borrowed("The visiting team is missing")))
-                } else {
-                    Ok(())
-                }
-            }
-            NewBookingEvent::Training(_) => Ok(()),
-        },
-        None => Ok(()),
-    }
+    todo!()
 }
-
-// fn validate_booking_event(event: &NewBookingEvent) -> Result<(), ValidationError> {
-//     match event {
-//         NewBookingEvent::Game(game_data) => {
-//             match game_data.validate() {
-//                 Ok(_) => (),
-//                 Err(e) => {
-//                     e.
-//                 },
-//             }
-
-//             if let Some(end_datetime) = game_data.end_datetime {
-//                 if game_data.start_datetime > end_datetime {
-//                     Err(
-//                         ValidationError::new("invalid_game_period").with_message(Cow::Borrowed(
-//                             "The start datetime must be before the end datetime",
-//                         )),
-//                     )
-//                 } else {
-//                     Ok(())
-//                 }
-//             } else {
-//                 Ok(())
-//             }
-//         }
-//         NewBookingEvent::Training(_) => Ok(()),
-//     }
-// }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub enum NewBookingEvent {
@@ -196,28 +152,28 @@ pub enum NewBookingEvent {
     Training(TrainingData),
 }
 
+// Validate derive is not supported for enums
 impl Validate for NewBookingEvent {
-    fn validate(&self) -> ::std::result::Result<(), ::validator::ValidationErrors> {
-        // let mut errors = ::validator::ValidationErrors::new();
-        // let mut result = if errors.is_empty() {
-        //     ::std::result::Result::Ok(())
-        // } else {
-        //     ::std::result::Result::Err(errors)
-        // };
-        // match self {
-        //     TargetType::CircleTarget(t) => {
-        //         ::validator::ValidationErrors::merge(result, "CircleTarget", t.validate())
-        //     }
-        //     TargetType::PolygonTarget(t) => {
-        //         ::validator::ValidationErrors::merge(result, "PolygonTarget", t.validate())
-        //     }
-        //     _ => result,
-        // }
-        todo!()
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        let parent_errors = ValidationErrors::new();
+        let errors;
+        match self {
+            NewBookingEvent::Game(game_data) => {
+                let game_errors = game_data.validate();
+
+                errors = ValidationErrors::merge(Err(parent_errors), "game", game_errors);
+            }
+            NewBookingEvent::Training(training_data) => {
+                let training_errors = training_data.validate();
+                errors = ValidationErrors::merge(Err(parent_errors), "training", training_errors);
+            }
+        }
+        errors
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Validate)]
+#[validate(schema(function = "validate_game_data"))]
 pub struct GameData {
     #[schema(value_type = String, format = DateTime)]
     #[validate(custom(function = "is_future_datetime"))]
@@ -229,13 +185,48 @@ pub struct GameData {
     pub visiting_team_id: Option<i64>,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+fn validate_game_data(data: &GameData) -> Result<(), ValidationError> {
+    if let Some(end_datetime) = data.end_datetime {
+        if data.start_datetime < end_datetime {
+            Ok(())
+        } else {
+            Err(
+                ValidationError::new("invalid_game_period").with_message(Cow::Borrowed(
+                    "The start datetime must be before the end datetime",
+                )),
+            )
+        }
+    } else {
+        Ok(())
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Validate)]
+#[validate(schema(function = "validate_training_data"))]
 pub struct TrainingData {
     #[schema(value_type = String, format = DateTime)]
+    #[validate(custom(function = "is_future_datetime"))]
     pub start_datetime: NaiveDateTime,
     #[schema(value_type = String, format = DateTime)]
+    #[validate(custom(function = "is_future_datetime"))]
     pub end_datetime: Option<NaiveDateTime>,
     pub team_id: i64,
+}
+
+fn validate_training_data(data: &TrainingData) -> Result<(), ValidationError> {
+    if let Some(end_datetime) = data.end_datetime {
+        if data.start_datetime < end_datetime {
+            Ok(())
+        } else {
+            Err(
+                ValidationError::new("invalid_training_period").with_message(Cow::Borrowed(
+                    "The start datetime must be before the end datetime",
+                )),
+            )
+        }
+    } else {
+        Ok(())
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -250,7 +241,7 @@ pub enum BookingEvent {
     Training(Training),
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Validate)]
 pub struct TrainingPlayerTagsData {
     pub training_id: i64,
     pub player_id: i64,
@@ -265,7 +256,8 @@ pub struct TrainingPlayerWithTags {
     pub rfid_tag_ids: Vec<i64>,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Validate)]
+#[validate(schema(function = "validate_fpt_data"))]
 pub struct FormationPlayerTagsData {
     pub formation_id: i64,
     pub player_id: i64,
@@ -277,6 +269,23 @@ pub struct FormationPlayerTagsData {
     pub exit_minute: Option<NaiveTime>,
 }
 
+fn validate_fpt_data(data: &FormationPlayerTagsData) -> Result<(), ValidationError> {
+    match (data.entry_minute, data.exit_minute) {
+        (Some(entry_minute), Some(exit_minute)) => {
+            if entry_minute < exit_minute {
+                Ok(())
+            } else {
+                Err(
+                    ValidationError::new("invalid_fpt_data").with_message(Cow::Borrowed(
+                        "The entry minute must be before the exit minute",
+                    )),
+                )
+            }
+        }
+        _ => Ok(()),
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct FormationPlayerWithTags {
     pub id: i64,
@@ -285,8 +294,9 @@ pub struct FormationPlayerWithTags {
     pub rfid_tag_ids: Vec<i64>,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Validate)]
 pub struct RecordingSessionData {
+    #[validate(nested)]
     pub recording_session: NewRecordingSession,
     pub camera_ids: Vec<i64>,
 }

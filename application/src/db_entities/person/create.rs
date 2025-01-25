@@ -3,10 +3,13 @@ use domain::models::{full_tables::Person, insertions::NewPerson};
 use infrastructure::establish_connection;
 use rocket::http::Status;
 use shared::response_models::{ApiError, ApiErrorType};
+use validator::Validate;
 
 /// Inserisce una nuova persona nel database e la restituisce.
 pub fn create_person(new_person: NewPerson) -> Result<Person, ApiError> {
     use domain::schema::person;
+
+    new_person.validate()?;
 
     let connection = &mut establish_connection();
 
