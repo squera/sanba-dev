@@ -1,15 +1,20 @@
 use diesel::prelude::*;
 use domain::models::{
-    full_tables::{FormationPlayer, FormationPlayerTag},
+    full_tables::{FormationPlayer, FormationPlayerTag, Game},
     others::FormationPlayerWithTags,
 };
 use infrastructure::establish_connection;
 use shared::response_models::ApiError;
 
+use crate::db_entities::booking::game::formation::check_is_formation_of_game;
+
 pub fn get_formation_player_list(
+    game_id: i64,
     formation_id: i64,
 ) -> Result<Vec<FormationPlayerWithTags>, ApiError> {
     use domain::schema::{formation_player, formation_player_tag};
+
+    check_is_formation_of_game(formation_id, game_id)?;
 
     let connection = &mut establish_connection();
 
@@ -57,4 +62,20 @@ fn populate_rfid_tags(
             player.rfid_tag_ids = Vec::new(); // Nessun tag associato
         }
     }
+}
+
+pub(crate) fn get_game_by_formation(formation_id: i64) -> Result<Game, ApiError> {
+    use domain::schema::game;
+
+    let connection = &mut establish_connection();
+
+    let game = game::table
+        .filter(
+            game::home_formation_id
+                .eq(formation_id)
+                .or(game::visiting_formation_id.eq(formation_id)),
+        )
+        .first::<Game>(connection)?;
+
+    Ok(game)
 }

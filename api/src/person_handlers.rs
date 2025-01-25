@@ -10,7 +10,6 @@ use domain::models::insertions::NewPerson;
 use domain::models::others::{
     JoinInfo, LeaveInfo, NewProfile, PersonWithUser, ProfileSet, TeamStaff,
 };
-use domain::models::WithId;
 use rocket::serde::json::Json;
 use rocket::{get, post, put};
 use shared::response_models::ApiError;

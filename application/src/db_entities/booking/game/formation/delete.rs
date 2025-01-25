@@ -3,7 +3,9 @@ use domain::models::{full_tables::Formation, others::FormationPlayerWithTags};
 use infrastructure::establish_connection;
 use shared::response_models::ApiError;
 
-use crate::db_entities::booking::game::formation::read::get_formation_player_list;
+use crate::db_entities::booking::game::formation::{
+    check_is_formation_of_game, read::get_formation_player_list,
+};
 
 pub fn delete_formation(formation_id: i64) -> Result<Formation, ApiError> {
     use domain::schema::{formation, formation_player, formation_player_tag};
@@ -33,10 +35,13 @@ pub fn delete_formation(formation_id: i64) -> Result<Formation, ApiError> {
 }
 
 pub fn delete_formation_players(
+    game_id: i64,
     formation_id: i64,
     player_ids: Vec<i64>,
 ) -> Result<Vec<FormationPlayerWithTags>, ApiError> {
     use domain::schema::{formation_player, formation_player_tag};
+
+    check_is_formation_of_game(formation_id, game_id)?;
 
     let connection = &mut establish_connection();
 
@@ -56,6 +61,6 @@ pub fn delete_formation_players(
     )
     .execute(connection)?;
 
-    let res = get_formation_player_list(formation_id)?;
+    let res = get_formation_player_list(game_id, formation_id)?;
     return Ok(res);
 }

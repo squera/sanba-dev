@@ -7,7 +7,7 @@ use application::{
         update::authorize_update_team,
     },
 };
-use domain::models::{full_tables::Team, insertions::NewTeam, WithId};
+use domain::models::{full_tables::Team, insertions::NewTeam};
 use rocket::{delete, get, post, put, serde::json::Json};
 use shared::response_models::ApiError;
 

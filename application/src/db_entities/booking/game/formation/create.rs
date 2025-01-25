@@ -9,7 +9,9 @@ use rocket::http::Status;
 use shared::response_models::{ApiError, ApiErrorType};
 use validator::Validate;
 
-use crate::db_entities::booking::game::formation::read::get_formation_player_list;
+use crate::db_entities::booking::game::formation::{
+    check_is_formation_of_game, read::get_formation_player_list,
+};
 
 pub fn create_empty_formation(formation: NewFormation) -> Result<Formation, ApiError> {
     use domain::schema::formation;
@@ -43,10 +45,13 @@ pub fn create_empty_formation(formation: NewFormation) -> Result<Formation, ApiE
 }
 
 pub fn create_formation_player_tags(
+    game_id: i64,
     formation_id: i64,
     players_data: Vec<FormationPlayerTagsData>,
 ) -> Result<Vec<FormationPlayerWithTags>, ApiError> {
     use domain::schema::{formation_player, formation_player_tag};
+
+    check_is_formation_of_game(formation_id, game_id)?;
 
     players_data.validate()?;
 
@@ -79,6 +84,6 @@ pub fn create_formation_player_tags(
         .values(&formation_player_tags)
         .execute(&mut establish_connection())?;
 
-    let res = get_formation_player_list(formation_id)?;
+    let res = get_formation_player_list(game_id, formation_id)?;
     return Ok(res);
 }

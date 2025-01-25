@@ -48,8 +48,7 @@ pub fn find_formation_handler(
 ) -> Result<Json<Vec<FormationPlayerWithTags>>, ApiError> {
     let _key = key?;
 
-    // TODO controllare che la formazione sia associata alla partita corretta
-    let res = get_formation_player_list(formation_id)?;
+    let res = get_formation_player_list(game_id, formation_id)?;
     Ok(Json(res))
 }
 
@@ -86,8 +85,7 @@ pub fn add_players_to_formation_handler(
 ) -> Result<Json<Vec<FormationPlayerWithTags>>, ApiError> {
     let _key = key?;
 
-    // TODO controllare che la formazione sia associata alla partita corretta
-    let res = create_formation_player_tags(formation_id, formation.into_inner())?;
+    let res = create_formation_player_tags(game_id, formation_id, formation.into_inner())?;
     Ok(Json(res))
 }
 
@@ -125,8 +123,7 @@ pub fn delete_players_from_formation_handler(
 ) -> Result<Json<Vec<FormationPlayerWithTags>>, ApiError> {
     let _key = key?;
 
-    // TODO controllare che la formazione sia associata alla partita corretta
-    let res = delete_formation_players(formation_id, player_list.into_inner())?;
+    let res = delete_formation_players(game_id, formation_id, player_list.into_inner())?;
     Ok(Json(res))
 }
 

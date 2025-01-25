@@ -143,7 +143,54 @@ pub struct NewBookingData {
 }
 
 fn validate_booking_data(data: &NewBookingData) -> Result<(), ValidationError> {
-    todo!()
+    if let Some(event) = &data.event {
+        match event {
+            NewBookingEvent::Game(game_data) => {
+                if game_data.start_datetime < data.booking.start_datetime {
+                    return Err(
+                        ValidationError::new("invalid_booking_game_periods").with_message(Cow::Borrowed(
+                            "The period of the game must be equal or contained in the period of the booking",
+                        )),
+                    );
+                }
+
+                if let Some(end_datetime) = game_data.end_datetime {
+                    if end_datetime > data.booking.end_datetime {
+                        return Err(
+                            ValidationError::new("invalid_booking_game_periods").with_message(Cow::Borrowed(
+                                "The period of the game must be equal or contained in the period of the booking",
+                            )),
+                        );
+                    }
+                }
+
+                return Ok(());
+            }
+            NewBookingEvent::Training(training_data) => {
+                if training_data.start_datetime < data.booking.start_datetime {
+                    return Err(
+                        ValidationError::new("invalid_booking_training_periods").with_message(Cow::Borrowed(
+                            "The period of the training must be equal or contained in the period of the booking",
+                        )),
+                    );
+                }
+
+                if let Some(end_datetime) = training_data.end_datetime {
+                    if end_datetime > data.booking.end_datetime {
+                        return Err(
+                            ValidationError::new("invalid_booking_training_periods").with_message(Cow::Borrowed(
+                                "The period of the training must be equal or contained in the period of the booking",
+                            )),
+                        );
+                    }
+                }
+
+                return Ok(());
+            }
+        }
+    } else {
+        Ok(())
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
