@@ -9,9 +9,18 @@ use rocket::http::Status;
 use shared::response_models::{ApiError, ApiErrorType};
 use validator::Validate;
 
-use crate::db_entities::booking::game::formation::{
-    check_is_formation_of_game, read::get_formation_player_list,
+use crate::{
+    authentication::Claims,
+    authorization::{
+        person_checks::is_administrator,
+        team_checks::{is_coach_of_team, is_responsible_of_team},
+    },
+    db_entities::booking::game::formation::{
+        check_is_formation_of_game, read::get_formation_player_list,
+    },
 };
+
+use super::read::find_formation;
 
 pub fn create_empty_formation(formation: NewFormation) -> Result<Formation, ApiError> {
     use domain::schema::formation;
@@ -44,14 +53,46 @@ pub fn create_empty_formation(formation: NewFormation) -> Result<Formation, ApiE
     return Ok(inserted_formation);
 }
 
-pub fn create_formation_player_tags(
+pub fn authorize_add_players_to_formation(
+    requesting_user: Claims,
     game_id: i64,
     formation_id: i64,
     players_data: Vec<FormationPlayerTagsData>,
 ) -> Result<Vec<FormationPlayerWithTags>, ApiError> {
-    use domain::schema::{formation_player, formation_player_tag};
-
     check_is_formation_of_game(formation_id, game_id)?;
+
+    let mut is_authorized = false;
+    if is_administrator(requesting_user.subject_id)? {
+        is_authorized = true;
+    } else {
+        let formation = find_formation(formation_id)?;
+        if is_coach_of_team(requesting_user.subject_id, Some(formation.team_id), true)?
+            || is_responsible_of_team(requesting_user.subject_id, formation.team_id, true)?
+        {
+            is_authorized = true;
+        }
+    }
+
+    if is_authorized {
+        return add_players_to_formation(formation_id, players_data);
+    } else {
+        return Err(ApiError {
+            http_status: Status::Forbidden,
+            error_code: 123, // TODO organizzare i codici di errore
+            error_type: ApiErrorType::AuthorizationError,
+            message: format!(
+                "Error - User {} is not authorized to add players to formation {}",
+                requesting_user.subject_id, formation_id
+            ),
+        });
+    }
+}
+
+pub fn add_players_to_formation(
+    formation_id: i64,
+    players_data: Vec<FormationPlayerTagsData>,
+) -> Result<Vec<FormationPlayerWithTags>, ApiError> {
+    use domain::schema::{formation_player, formation_player_tag};
 
     players_data.validate()?;
 
@@ -84,6 +125,6 @@ pub fn create_formation_player_tags(
         .values(&formation_player_tags)
         .execute(&mut establish_connection())?;
 
-    let res = get_formation_player_list(game_id, formation_id)?;
+    let res = get_formation_player_list(formation_id)?;
     return Ok(res);
 }

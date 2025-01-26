@@ -1,20 +1,60 @@
 use diesel::prelude::*;
 use domain::models::{
-    full_tables::{FormationPlayer, FormationPlayerTag, Game},
+    full_tables::{Formation, FormationPlayer, FormationPlayerTag, Game},
     others::FormationPlayerWithTags,
 };
 use infrastructure::establish_connection;
-use shared::response_models::ApiError;
+use rocket::http::Status;
+use shared::response_models::{ApiError, ApiErrorType};
 
-use crate::db_entities::booking::game::formation::check_is_formation_of_game;
+use crate::{
+    authentication::Claims,
+    authorization::{
+        person_checks::is_administrator,
+        team_checks::{is_coach_of_team, is_player_of_team, is_responsible_of_team},
+    },
+    db_entities::booking::game::formation::check_is_formation_of_game,
+};
 
-pub fn get_formation_player_list(
+pub fn authorize_get_formation_player_list(
+    requesting_user: Claims,
     game_id: i64,
     formation_id: i64,
 ) -> Result<Vec<FormationPlayerWithTags>, ApiError> {
-    use domain::schema::{formation_player, formation_player_tag};
-
     check_is_formation_of_game(formation_id, game_id)?;
+
+    let mut is_authorized = false;
+    if is_administrator(requesting_user.subject_id)? {
+        is_authorized = true;
+    } else {
+        let formation = find_formation(formation_id)?;
+        if is_player_of_team(requesting_user.subject_id, Some(formation.team_id), true)?
+            || is_coach_of_team(requesting_user.subject_id, Some(formation.team_id), true)?
+            || is_responsible_of_team(requesting_user.subject_id, formation.team_id, true)?
+        {
+            is_authorized = true;
+        }
+    }
+
+    if is_authorized {
+        return get_formation_player_list(formation_id);
+    } else {
+        return Err(ApiError {
+            http_status: Status::Forbidden,
+            error_code: 123, // TODO organizzare i codici di errore
+            error_type: ApiErrorType::AuthorizationError,
+            message: format!(
+                "Error - User {} is not authorized to read formation {}",
+                requesting_user.subject_id, formation_id
+            ),
+        });
+    }
+}
+
+pub fn get_formation_player_list(
+    formation_id: i64,
+) -> Result<Vec<FormationPlayerWithTags>, ApiError> {
+    use domain::schema::{formation_player, formation_player_tag};
 
     let connection = &mut establish_connection();
 
@@ -78,4 +118,14 @@ pub(crate) fn get_game_by_formation(formation_id: i64) -> Result<Game, ApiError>
         .first::<Game>(connection)?;
 
     Ok(game)
+}
+
+pub(crate) fn find_formation(formation_id: i64) -> Result<Formation, ApiError> {
+    use domain::schema::formation;
+
+    let connection = &mut establish_connection();
+
+    let formation = formation::table.find(formation_id).first(connection)?;
+
+    Ok(formation)
 }

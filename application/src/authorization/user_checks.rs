@@ -4,14 +4,14 @@ use infrastructure::establish_connection;
 use log::trace;
 use shared::response_models::ApiError;
 
-pub fn is_same_user(user_id_1: i64, user_id_2: i64) -> bool {
+pub fn is_same_person(person_id_1: i64, person_id_2: i64) -> bool {
     trace!(
-        "Checking if user {} is the same as user {}",
-        user_id_1,
-        user_id_2
+        "Checking if person {} is the same as person {}",
+        person_id_1,
+        person_id_2
     );
 
-    user_id_1 == user_id_2
+    person_id_1 == person_id_2
 }
 
 /// Verifica se un utente è responsabile di un club

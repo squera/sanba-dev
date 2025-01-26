@@ -1,10 +1,11 @@
 use application::{
     authentication::JWT,
     db_entities::booking::game::{
-        delete::delete_game,
+        delete::authorize_delete_game,
         formation::{
-            create::create_formation_player_tags, delete::delete_formation_players,
-            read::get_formation_player_list,
+            create::authorize_add_players_to_formation,
+            delete::authorize_remove_players_from_formation,
+            read::authorize_get_formation_player_list,
         },
     },
 };
@@ -46,9 +47,9 @@ pub fn find_formation_handler(
     game_id: i64,
     formation_id: i64,
 ) -> Result<Json<Vec<FormationPlayerWithTags>>, ApiError> {
-    let _key = key?;
+    let key = key?;
 
-    let res = get_formation_player_list(game_id, formation_id)?;
+    let res = authorize_get_formation_player_list(key.claims, game_id, formation_id)?;
     Ok(Json(res))
 }
 
@@ -83,9 +84,14 @@ pub fn add_players_to_formation_handler(
     formation_id: i64,
     formation: Json<Vec<FormationPlayerTagsData>>,
 ) -> Result<Json<Vec<FormationPlayerWithTags>>, ApiError> {
-    let _key = key?;
+    let key = key?;
 
-    let res = create_formation_player_tags(game_id, formation_id, formation.into_inner())?;
+    let res = authorize_add_players_to_formation(
+        key.claims,
+        game_id,
+        formation_id,
+        formation.into_inner(),
+    )?;
     Ok(Json(res))
 }
 
@@ -121,9 +127,14 @@ pub fn delete_players_from_formation_handler(
     formation_id: i64,
     player_list: Json<Vec<i64>>,
 ) -> Result<Json<Vec<FormationPlayerWithTags>>, ApiError> {
-    let _key = key?;
+    let key = key?;
 
-    let res = delete_formation_players(game_id, formation_id, player_list.into_inner())?;
+    let res = authorize_remove_players_from_formation(
+        key.claims,
+        game_id,
+        formation_id,
+        player_list.into_inner(),
+    )?;
     Ok(Json(res))
 }
 
@@ -156,8 +167,8 @@ pub fn delete_game_handler(
     key: Result<JWT, ApiError>,
     game_id: i64,
 ) -> Result<Json<Game>, ApiError> {
-    let _key = key?;
+    let key = key?;
 
-    let res = delete_game(game_id)?;
+    let res = authorize_delete_game(key.claims, game_id)?;
     Ok(Json(res))
 }

@@ -10,9 +10,9 @@ use crate::{
 };
 
 pub fn authorize_delete_user(requesting_user: Claims, user_id: i64) -> Result<User, ApiError> {
-    use crate::authorization::user_checks::is_same_user;
+    use crate::authorization::user_checks::is_same_person;
 
-    if is_same_user(requesting_user.subject_id, user_id)
+    if is_same_person(requesting_user.subject_id, user_id)
         || is_administrator(requesting_user.subject_id)?
     {
         return delete_user(user_id);

@@ -1,9 +1,32 @@
 use diesel::prelude::*;
 use domain::models::full_tables::Game;
 use infrastructure::establish_connection;
-use shared::response_models::ApiError;
+use rocket::http::Status;
+use shared::response_models::{ApiError, ApiErrorType};
 
-use crate::db_entities::booking::game::formation::delete::delete_formation;
+use crate::{
+    authentication::Claims, authorization::booking_checks::can_edit_delete_booking,
+    db_entities::booking::game::formation::delete::delete_formation,
+};
+
+use super::read::find_game;
+
+pub fn authorize_delete_game(requesting_user: Claims, game_id: i64) -> Result<Game, ApiError> {
+    let game = find_game(game_id)?;
+    if can_edit_delete_booking(requesting_user.subject_id, game.booking_id)? {
+        return delete_game(game_id);
+    } else {
+        return Err(ApiError {
+            http_status: Status::Forbidden,
+            error_code: 123, // TODO organizzare i codici di errore
+            error_type: ApiErrorType::AuthorizationError,
+            message: format!(
+                "Error - User {} is not authorized to delete game {}",
+                requesting_user.subject_id, game.booking_id
+            ),
+        });
+    }
+}
 
 pub fn delete_game(game_id: i64) -> Result<Game, ApiError> {
     use domain::schema::game;

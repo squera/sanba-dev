@@ -1,8 +1,46 @@
 use diesel::prelude::*;
-use domain::models::full_tables::{CoachTeam, UserClub};
+use domain::models::full_tables::{CoachTeam, PlayerTeam, UserClub};
 use infrastructure::establish_connection;
 use log::trace;
 use shared::response_models::ApiError;
+
+pub fn is_player_of_team(
+    person_id: i64,
+    team_id: Option<i64>,
+    now: bool,
+) -> Result<bool, ApiError> {
+    use domain::schema::player_team;
+
+    trace!(
+        "Checking if user {} is player of team {:?} now: {}",
+        person_id,
+        team_id,
+        now
+    );
+
+    let connection = &mut establish_connection();
+
+    let mut query = player_team::table
+        .into_boxed()
+        .filter(player_team::player_id.eq(person_id));
+
+    if let Some(team_id) = team_id {
+        query = query.filter(player_team::team_id.eq(team_id));
+    }
+
+    if now {
+        query = query.filter(player_team::until_date.is_null());
+    }
+
+    match query
+        .select(PlayerTeam::as_select())
+        .first(connection)
+        .optional()?
+    {
+        Some(_) => Ok(true),
+        None => Ok(false),
+    }
+}
 
 /// Verifica se una persona è allenatore di una squadra
 ///

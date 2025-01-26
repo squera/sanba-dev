@@ -16,7 +16,7 @@ use crate::{
     authorization::{
         person_checks::{is_administrator, is_person_with_user},
         team_checks::{is_coach_of_team, is_responsible_of_team},
-        user_checks::is_same_user,
+        user_checks::is_same_person,
     },
     db_entities::person::read::find_person,
 };
@@ -31,7 +31,7 @@ pub fn authorize_update_person(
         is_authorized = true;
     } else {
         if is_person_with_user(person_id)? {
-            if is_same_user(requesting_user.subject_id, person_id) {
+            if is_same_person(requesting_user.subject_id, person_id) {
                 is_authorized = true;
             }
         } else {
@@ -95,7 +95,7 @@ pub fn authorize_add_profile(
         is_authorized = true;
     } else {
         if is_person_with_user(person_id)? {
-            if is_same_user(requesting_user.subject_id, person_id) {
+            if is_same_person(requesting_user.subject_id, person_id) {
                 is_authorized = true;
             }
         } else {
@@ -249,7 +249,8 @@ pub fn authorize_leave_team(
     if is_administrator(requesting_user.subject_id)? {
         is_authorized = true;
     } else {
-        if is_person_with_user(person_id)? && is_same_user(requesting_user.subject_id, person_id) {
+        if is_person_with_user(person_id)? && is_same_person(requesting_user.subject_id, person_id)
+        {
             is_authorized = true;
         } else {
             if is_coach_of_team(requesting_user.subject_id, Some(team_id), true)?

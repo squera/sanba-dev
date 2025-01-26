@@ -7,6 +7,7 @@ use crate::{
     authorization::{
         person_checks::is_administrator,
         team_checks::{is_coach_of_team, is_responsible_of_team},
+        user_checks::is_same_person,
     },
     db_entities::booking::read::find_booking,
 };
@@ -20,7 +21,7 @@ pub fn can_edit_delete_booking(person_id: i64, booking_id: i64) -> Result<bool, 
 
     let old_booking = find_booking(booking_id)?;
 
-    if is_administrator(person_id)? {
+    if is_administrator(person_id)? || is_same_person(person_id, old_booking.booking.author_id) {
         is_authorized = true;
     } else if let Some(event) = &old_booking.event {
         match event {
