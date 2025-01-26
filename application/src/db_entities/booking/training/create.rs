@@ -10,7 +10,16 @@ use rocket::http::Status;
 use shared::response_models::{ApiError, ApiErrorType};
 use validator::Validate;
 
-use crate::db_entities::booking::training::read::get_training_player_list;
+use crate::{
+    authentication::Claims,
+    authorization::{
+        person_checks::is_administrator,
+        team_checks::{is_coach_of_team, is_responsible_of_team},
+    },
+    db_entities::booking::training::read::get_training_player_list,
+};
+
+use super::read::find_training;
 
 pub fn create_training(training: NewTraining) -> Result<Training, ApiError> {
     use domain::schema::training;
@@ -41,7 +50,39 @@ pub fn create_training(training: NewTraining) -> Result<Training, ApiError> {
     return Ok(inserted_training);
 }
 
-pub fn create_training_player_tags(
+pub fn authorize_add_players_to_training(
+    requesting_user: Claims,
+    training_id: i64,
+    players_data: Vec<TrainingPlayerTagsData>,
+) -> Result<Vec<TrainingPlayerWithTags>, ApiError> {
+    let mut is_authorized = false;
+    if is_administrator(requesting_user.subject_id)? {
+        is_authorized = true;
+    } else {
+        let training = find_training(training_id)?;
+        if is_coach_of_team(requesting_user.subject_id, Some(training.team_id), true)?
+            || is_responsible_of_team(requesting_user.subject_id, training.team_id, true)?
+        {
+            is_authorized = true;
+        }
+    }
+
+    if is_authorized {
+        return add_players_to_training(training_id, players_data);
+    } else {
+        return Err(ApiError {
+            http_status: Status::Forbidden,
+            error_code: 123, // TODO organizzare i codici di errore
+            error_type: ApiErrorType::AuthorizationError,
+            message: format!(
+                "Error - User {} is not authorized to add players to training {}",
+                requesting_user.subject_id, training_id
+            ),
+        });
+    }
+}
+
+pub fn add_players_to_training(
     training_id: i64,
     players_data: Vec<TrainingPlayerTagsData>,
 ) -> Result<Vec<TrainingPlayerWithTags>, ApiError> {

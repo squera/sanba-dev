@@ -22,7 +22,7 @@ pub fn authorize_delete_game(requesting_user: Claims, game_id: i64) -> Result<Ga
             error_type: ApiErrorType::AuthorizationError,
             message: format!(
                 "Error - User {} is not authorized to delete game {}",
-                requesting_user.subject_id, game.booking_id
+                requesting_user.subject_id, game_id
             ),
         });
     }

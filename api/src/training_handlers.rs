@@ -1,9 +1,9 @@
 use application::{
     authentication::JWT,
     db_entities::booking::training::{
-        create::create_training_player_tags,
-        delete::{delete_training, delete_training_players},
-        read::get_training_player_list,
+        create::authorize_add_players_to_training,
+        delete::{authorize_delete_training, authorize_remove_players_from_training},
+        read::authorize_get_training_player_list,
     },
 };
 use domain::models::{
@@ -44,9 +44,10 @@ pub fn add_training_player_list_handler(
     training_id: i64,
     players_data: Json<Vec<TrainingPlayerTagsData>>,
 ) -> Result<Json<Vec<TrainingPlayerWithTags>>, ApiError> {
-    let _key = key?;
+    let key = key?;
 
-    let res = create_training_player_tags(training_id, players_data.into_inner())?;
+    let res =
+        authorize_add_players_to_training(key.claims, training_id, players_data.into_inner())?;
     Ok(Json(res))
 }
 
@@ -80,9 +81,9 @@ pub fn find_training_player_list_handler(
     key: Result<JWT, ApiError>,
     training_id: i64,
 ) -> Result<Json<Vec<TrainingPlayerWithTags>>, ApiError> {
-    let _key = key?;
+    let key = key?;
 
-    let res = get_training_player_list(training_id)?;
+    let res = authorize_get_training_player_list(key.claims, training_id)?;
     Ok(Json(res))
 }
 
@@ -116,9 +117,10 @@ pub fn delete_training_player_list_handler(
     training_id: i64,
     player_ids: Json<Vec<i64>>,
 ) -> Result<Json<Vec<TrainingPlayerWithTags>>, ApiError> {
-    let _key = key?;
+    let key = key?;
 
-    let res = delete_training_players(training_id, player_ids.into_inner())?;
+    let res =
+        authorize_remove_players_from_training(key.claims, training_id, player_ids.into_inner())?;
     Ok(Json(res))
 }
 
@@ -151,8 +153,8 @@ pub fn delete_training_handler(
     key: Result<JWT, ApiError>,
     training_id: i64,
 ) -> Result<Json<Training>, ApiError> {
-    let _key = key?;
+    let key = key?;
 
-    let res = delete_training(training_id)?;
+    let res = authorize_delete_training(key.claims, training_id)?;
     Ok(Json(res))
 }
