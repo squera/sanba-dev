@@ -7,7 +7,29 @@ use domain::{
     schema::camera,
 };
 use infrastructure::establish_connection;
-use shared::response_models::ApiError;
+use rocket::http::Status;
+use shared::response_models::{ApiError, ApiErrorType};
+
+use crate::{authentication::Claims, authorization::booking_checks::can_read_recording_session};
+
+pub fn authorize_find_recording_session(
+    requesting_user: Claims,
+    session_id: i64,
+) -> Result<RecordingSessionWithCameras, ApiError> {
+    if can_read_recording_session(requesting_user.subject_id, session_id)? {
+        return find_recording_session(session_id);
+    } else {
+        return Err(ApiError {
+            http_status: Status::Forbidden,
+            error_code: 123, // TODO organizzare i codici di errore
+            error_type: ApiErrorType::AuthorizationError,
+            message: format!(
+                "Error - User {} is not authorized to read recording session {}",
+                requesting_user.subject_id, session_id
+            ),
+        });
+    }
+}
 
 pub fn find_recording_session(session_id: i64) -> Result<RecordingSessionWithCameras, ApiError> {
     use domain::schema::{camera_session, recording_session};
@@ -29,6 +51,25 @@ pub fn find_recording_session(session_id: i64) -> Result<RecordingSessionWithCam
         recording_session,
         cameras,
     });
+}
+
+pub fn authorize_list_recording_sessions_by_booking(
+    requesting_user: Claims,
+    booking_id: i64,
+) -> Result<Vec<RecordingSessionWithCameras>, ApiError> {
+    if can_read_recording_session(requesting_user.subject_id, booking_id)? {
+        return list_recording_sessions_by_booking(booking_id);
+    } else {
+        return Err(ApiError {
+            http_status: Status::Forbidden,
+            error_code: 123, // TODO organizzare i codici di errore
+            error_type: ApiErrorType::AuthorizationError,
+            message: format!(
+                "Error - User {} is not authorized to read recording sessions for booking {}",
+                requesting_user.subject_id, booking_id
+            ),
+        });
+    }
 }
 
 pub fn list_recording_sessions_by_booking(

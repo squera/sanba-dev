@@ -10,7 +10,32 @@ use rocket::http::Status;
 use shared::response_models::{ApiError, ApiErrorType};
 use validator::Validate;
 
-use crate::db_entities::recording_session::read::find_recording_session;
+use crate::{
+    authentication::Claims, authorization::booking_checks::can_edit_delete_booking,
+    db_entities::recording_session::read::find_recording_session,
+};
+
+pub fn authorize_create_recording_session_with_cameras(
+    requesting_user: Claims,
+    session_data: RecordingSessionData,
+) -> Result<RecordingSessionWithCameras, ApiError> {
+    if can_edit_delete_booking(
+        requesting_user.subject_id,
+        session_data.recording_session.booking_id,
+    )? {
+        return create_recording_session_with_cameras(session_data);
+    } else {
+        return Err(ApiError {
+            http_status: Status::Forbidden,
+            error_code: 123,
+            error_type: ApiErrorType::ApplicationError,
+            message: format!(
+                "User {} is not authorized to create a recording session for booking {}",
+                requesting_user.subject_id, session_data.recording_session.booking_id
+            ),
+        });
+    }
+}
 
 pub fn create_recording_session_with_cameras(
     session_data: RecordingSessionData,
@@ -40,7 +65,7 @@ pub fn create_recording_session_with_cameras(
     return Ok(res);
 }
 
-/// Inserisce una nuova squadra nel database e la restituisce.
+/// Inserisce una nuova sessione di registrazione nel database e la restituisce.
 fn create_recording_session(
     new_session: NewRecordingSession,
 ) -> Result<RecordingSession, ApiError> {

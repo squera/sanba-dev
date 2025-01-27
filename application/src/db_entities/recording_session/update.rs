@@ -7,10 +7,37 @@ use domain::models::{
     WithId,
 };
 use infrastructure::establish_connection;
-use shared::response_models::ApiError;
+use rocket::http::Status;
+use shared::response_models::{ApiError, ApiErrorType};
 use validator::Validate;
 
-use crate::db_entities::recording_session::read::find_recording_session;
+use crate::{
+    authentication::Claims, authorization::booking_checks::can_edit_delete_booking,
+    db_entities::recording_session::read::find_recording_session,
+};
+
+pub fn authorize_update_recording_session_and_cameras(
+    requesting_user: Claims,
+    session_id: i64,
+    recording_session_data: RecordingSessionData,
+) -> Result<RecordingSessionWithCameras, ApiError> {
+    if can_edit_delete_booking(
+        requesting_user.subject_id,
+        recording_session_data.recording_session.booking_id,
+    )? {
+        return update_recording_session_and_cameras(session_id, recording_session_data);
+    } else {
+        return Err(ApiError {
+            http_status: Status::Forbidden,
+            error_code: 123, // TODO organizzare i codici di errore
+            error_type: ApiErrorType::AuthorizationError,
+            message: format!(
+                "Error - User {} is not authorized to update recording session {}",
+                requesting_user.subject_id, session_id
+            ),
+        });
+    }
+}
 
 pub fn update_recording_session_and_cameras(
     session_id: i64,
