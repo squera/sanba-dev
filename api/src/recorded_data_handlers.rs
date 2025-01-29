@@ -1,8 +1,16 @@
+use std::collections::HashMap;
+use std::process::Child;
+use std::sync::Arc;
 use application::authentication::JWT;
+use application::player::player;
 use domain::models::full_tables::{Screenshot, Video};
 use domain::models::others::{NewClip, NewScreenshot, NewTimestamp, UserList};
 use rocket::{delete, get, post, serde::json::Json};
+use rocket::tokio::sync::Mutex;
 use shared::response_models::ApiError;
+
+type StreamMap = Arc<Mutex<HashMap<String, Child>>>;
+type Cams = Arc<Mutex<Vec<(String, String)>>>;
 
 /// Restituisce la lista dei video per una prenotazione
 ///
@@ -306,4 +314,61 @@ pub fn share_video_handler(
     users: Json<UserList>,
 ) -> Result<String, ApiError> {
     todo!()
+}
+
+/// Inizializza la ricezione delle streams.
+///
+/// Per ogni entry nell'array cams chiama la funzione stream di player.rs.
+///
+/// ### Chi ha accesso:
+/// - Il responsabile della società sportiva
+/// - Un allenatore della squadra
+/// - Chiunque altro abbia l'accesso alle telecamere
+#[get("/start")]
+pub async fn init_streams_capture(state: &rocket::State<StreamMap>) {
+    match player::list_cameras().await {
+        Ok(cams) => {
+            println!("Camera list saved");
+            let cams_lock=cams.lock().await;
+            for (name, url) in cams_lock.iter() {
+                match player::stream(url.clone(), name.clone(), state).await {
+                    Ok(_) => println!("Started stream for: {}", url),
+                    Err(e) => eprintln!("Error starting stream {}: {}", name, e),
+                }
+            }
+        },
+        Err(e) => eprintln!("Error getting camera list: {}", e),
+    }
+}
+
+/// Termina la ricezione delle streams.
+///
+/// Per ogni entry nell'array state che contiene i processi di ricezione attivi
+/// termina quel processo.
+///
+/// ### Chi ha accesso:
+/// - Il responsabile della società sportiva
+/// - Un allenatore della squadra
+/// - Chiunque altro abbia l'accesso alle telecamere
+#[get("/stop")]
+pub async fn end_streams_capture(state: &rocket::State<StreamMap>) {
+    let mut streams = state.lock().await;
+
+    match player::list_cameras().await {
+        Ok(cams) => {
+            let cams_lock=cams.lock().await;
+            for (_name, url) in cams_lock.iter() {
+                if let Some(mut child) = streams.remove(url) {
+                    match child.kill() {
+                        Ok(_) => println!("Stream stopped"),
+                        Err(e) => eprintln!("Failed to stop FFmpeg process: {}", e)
+                    }
+                }
+                else {
+                    println!("Stream not found");
+                }
+            }
+        },
+        Err(e) => eprintln!("Error getting camera list: {}", e)
+    }
 }

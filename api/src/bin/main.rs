@@ -1,8 +1,10 @@
 #[macro_use]
 extern crate rocket;
 
+use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr};
-
+use std::process::Child;
+use std::sync::Arc;
 use api::{
     booking_handlers, club_handlers, game_handlers, person_handlers, recorded_data_handlers,
     recording_session_handlers, team_handlers, training_handlers, user_handlers,
@@ -15,12 +17,17 @@ use rocket::{
         Figment,
     },
 };
+use rocket::fs::FileServer;
+use rocket::tokio::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use utoipa::{
     openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
     Modify, OpenApi,
 };
 use utoipa_swagger_ui::SwaggerUi;
+
+type StreamMap = Arc<Mutex<HashMap<String, Child>>>;
+type Cams = Arc<Mutex<Vec<(String, String)>>>;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -151,6 +158,8 @@ impl Default for RocketConfig {
 
 #[launch]
 fn rocket() -> _ {
+    let streams: StreamMap = Arc::new(Mutex::new(HashMap::new()));
+
     match dotenvy::dotenv() {
         Ok(_) => {}
         Err(err) => {
@@ -174,6 +183,7 @@ fn rocket() -> _ {
 
     rocket::custom(figment)
         .attach(AdHoc::config::<RocketConfig>())
+        .manage(streams)
         .mount(
             "/person",
             routes![
@@ -273,6 +283,13 @@ fn rocket() -> _ {
                 recorded_data_handlers::delete_timestamp_handler,
                 recorded_data_handlers::create_clip_handler,
                 recorded_data_handlers::share_video_handler,
+            ],
+        )
+        .mount(
+            "/player",
+            routes![
+                recorded_data_handlers::end_streams_capture,
+                recorded_data_handlers::init_streams_capture,
             ],
         )
         .mount(
