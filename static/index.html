@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>DASH Player</title>
+        <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+        <!-- DASH.js library -->
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin: 0;
+                padding: 20px;
+            }
+            video {
+                width: 80%;
+                max-width: 720px;
+                margin: 20px 0;
+                border: 2px solid #000;
+                background: #000;
+            }
+            .logs {
+                max-width: 80%;
+                margin: 20px auto;
+                padding: 10px;
+                border: 1px solid #ccc;
+                background: #f8f8f8;
+                height: 200px;
+                overflow-y: scroll;
+                font-size: 12px;
+                text-align: left;
+            }
+            .logs pre {
+                margin: 0;
+                white-space: pre-wrap;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>DASH Video Player</h1>
+        <video autoplay="true" preload="none" controls="true">
+            <source
+                src="http://127.0.0.1:8000/dash/CAM0/manifest.mpd"
+                type="application/dash+xml" />
+        </video>
+        <!-- Video element -->
+        <div class="logs">
+            <h3>Debug Logs</h3>
+            <pre id="logContainer"></pre>
+            <!-- Container for debug logs -->
+        </div>
+        <script>
+            // Set the URL to your MPD file
+            const manifestUrl = "http://127.0.0.1:8000/dash/CAM0/manifest.mpd";
+
+            // Initialize the DASH.js player
+            const player = dashjs.MediaPlayer().create();
+            const videoPlayer = document.getElementById("videoPlayer");
+            const logContainer = document.getElementById("logContainer");
+
+            // Configure the player
+            player.initialize(videoPlayer, manifestUrl, true); // Autoplay = true
+
+            // Enable detailed debug logging
+            player.updateSettings({
+                debug: {
+                    logLevel: dashjs.Debug.LOG_LEVEL_DEBUG, // Available levels: FATAL, ERROR, WARNING, INFO, DEBUG
+                },
+            });
+
+            // Append debug logs to the UI
+            player.on(dashjs.MediaPlayer.events.LOG, function (e) {
+                const logMessage = `[${new Date().toISOString()}] ${e.message}\n`;
+                logContainer.textContent += logMessage;
+                logContainer.scrollTop = logContainer.scrollHeight; // Auto-scroll to the latest log
+            });
+
+            // Catch errors and display them
+            player.on(dashjs.MediaPlayer.events.ERROR, function (e) {
+                console.error("DASH.js Error:", e);
+                const errorMessage = `ERROR: ${JSON.stringify(e)}\n`;
+                logContainer.textContent += errorMessage;
+            });
+
+            // Notify when playback starts
+            player.on(dashjs.MediaPlayer.events.PLAYBACK_STARTED, function () {
+                console.log("Playback started");
+                logContainer.textContent += "Playback started.\n";
+            });
+
+            // Notify when playback ends
+            player.on(dashjs.MediaPlayer.events.PLAYBACK_ENDED, function () {
+                console.log("Playback ended");
+                logContainer.textContent += "Playback ended.\n";
+            });
+
+            // Notify manifest parsing
+            player.on(dashjs.MediaPlayer.events.MANIFEST_LOADED, function () {
+                console.log("Manifest loaded successfully");
+                logContainer.textContent += "Manifest loaded successfully.\n";
+            });
+        </script>
+    </body>
+</html>

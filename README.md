@@ -4,7 +4,10 @@ Welcome to the repository for everything regarding the management system for the
 
 ### Table of Contents
 
-`// TODO`
+[Introduction](#introduction)  
+[System Architecture](#system-architecture)
+[Project Structure](#project-structure)
+[Install and run](#install-and-run)
 
 ## Introduction
 
@@ -16,6 +19,8 @@ The goal of this project is to allow the teams to easily use the cameras to reco
 The system is composed by a Rust backend which exposes web APIs for client interaction with a Rocket server. Data is stored in a MariaDB database (a fork of MySQL).
 
 This architecture gives the option to implement various frontend applications, such as a webapp, a mobile app, a Telegram bot, etc.
+
+The IP cameras deployed in the Arena provide a RTSP stream that this system is able to capture and send to a video player with a DASH stream.
 
 ## Project Structure
 
@@ -43,7 +48,7 @@ The packages are:
 
 -   **`infrastructure`**
 
-    This package is used to keep all files used by dependencies, such as Diesel's migrations.
+    This package is used to keep all files used by dependencies, such as Diesel's migrations and a folder to store DASH files.
 
 -   **`shared`**
 
@@ -57,7 +62,7 @@ The dependencies between packages are organized so that the code follows the pri
 
 ## Install and run
 
-In addition to this repo, to run the project you will need to setup a database and (optionally) a RSTP camera (which can be emulated with VLC).
+In addition to this repo, to run the project you will need to setup a database and (optionally) a RTSP camera (which can be emulated with VLC).
 
 ### Database Setup
 
@@ -115,4 +120,52 @@ In addition to this repo, to run the project you will need to setup a database a
 
 ### Camera Setup
 
-`//TODO complete installation documentation`
+VLC media player can be used to emulate a RTSP camera using a video file saved on your computer.
+
+1.  Download [VLC media player](https://www.videolan.org/vlc)
+
+2.  Choose a video to use as a source for the RTSP camera emulation. If you don't have one, you can easily download a 1 hour test video from Youtube.
+
+3.  Add a camera record to the database with this statement:
+
+        INSERT INTO camera (id,ipv4_address,port,username,password) VALUES (1,'127.0.0.1',8554,'username','password');
+
+    This data will be used by the program to connect to the RTSP stream.
+
+4.  Since VLC doesn't seem to support authentication for RTSP streams, set this variable as `false` in the .env file:
+
+        RTSP_AUTHENTICATION=false
+
+    This way the module in charge of capturing the camera stream will not provide the credentials stored in the database.
+
+5.  Start a RTSP server with VLC:
+
+    a. Open VLC
+
+    b. Select Media > Stream (or press `CTRL + S`)
+
+    c. In the File tab press the Add button and select the file to use as a video source
+
+    d. Press Stream (if not present, choose Stream from the dropdown menu of the button)
+
+    e. Press Next
+
+    f. In the Destination setup window, choose RTSP as a new destination and press the Add button
+
+    g. Set the port field with the same port value you used in step 3 (the default for RTSP is 8554). Leave the path field as `/` and press Next
+
+    h. In the Transcoding options window, make sure `Activate transcoding` is checked and press Next
+
+    i. Press Stream to start the server
+
+    j. Now the progress bar in the player window starts advancing. You can use the Play/Pause button to stop or resume the stream
+
+6.  Start the project and visit http://localhost:8000/static to load the demo page with the video player.
+
+7.  For now, to start the DASH streaming service, you need to call the /player/start endpoint manually. You can do this from the Swagger UI documentation page (http://localhost:8000/swagger-ui).
+
+    > A proper frontend should call this endpoint when the video player is shown to the user.
+
+8.  The video player should start displaying the video (you may need to reload the page if the player ended its loading attempt).
+
+9.  To stop the streaming, call /player/stop.
