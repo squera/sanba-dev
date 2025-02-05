@@ -103,6 +103,12 @@ where
     }
 }
 
+impl CustomIpv4Address {
+    pub fn to_string(&self) -> String {
+        self.0.to_string()
+    }
+}
+
 #[derive(Debug, Clone, Copy, AsExpression, FromSqlRow, Serialize, Deserialize)]
 #[diesel(sql_type = Text)]
 pub struct CustomIpv6Address(Ipv6Addr);
