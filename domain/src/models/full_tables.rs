@@ -1,3 +1,4 @@
+use std::fmt;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
@@ -101,9 +102,9 @@ where
     }
 }
 
-impl CustomIpv4Address {
-    pub fn to_string(&self) -> String {
-        self.0.to_string()
+impl fmt::Display for CustomIpv4Address {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
@@ -128,6 +129,12 @@ where
     fn from_sql(bytes: <Mysql as Backend>::RawValue<'_>) -> deserialize::Result<Self> {
         <String as deserialize::FromSql<Text, Mysql>>::from_sql(bytes)
             .map(|addr: String| CustomIpv6Address(addr.parse().unwrap()))
+    }
+}
+
+impl fmt::Display for CustomIpv6Address {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

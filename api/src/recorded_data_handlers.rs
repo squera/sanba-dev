@@ -1,13 +1,13 @@
-use std::collections::HashMap;
-use std::process::Child;
-use std::sync::Arc;
 use application::authentication::JWT;
 use application::player::player;
 use domain::models::full_tables::{Screenshot, Video};
 use domain::models::others::{NewClip, NewScreenshot, NewTimestamp, UserList};
-use rocket::{delete, get, post, serde::json::Json};
 use rocket::tokio::sync::Mutex;
+use rocket::{delete, get, post, serde::json::Json};
 use shared::response_models::ApiError;
+use std::collections::HashMap;
+use std::process::Child;
+use std::sync::Arc;
 
 type StreamMap = Arc<Mutex<HashMap<String, Child>>>;
 type Cams = Arc<Mutex<Vec<(String, String)>>>;
@@ -324,19 +324,33 @@ pub fn share_video_handler(
 /// - Il responsabile della società sportiva
 /// - Un allenatore della squadra
 /// - Chiunque altro abbia l'accesso alle telecamere
+#[utoipa::path(
+    context_path = "/player",      // Path di base che viene aggiunto all'inizio del path specificato nella macro get
+    tags = ["Dati registrati"],
+    responses(
+        (status = OK, description = "Stream avviata con successo", body = String),
+        (status = BAD_REQUEST, description = "Errore nei dati forniti", body = ApiError, content_type = "application/json"),
+        (status = UNAUTHORIZED, description = "Non è stato fornito un token di autenticazione", body = ApiError, content_type = "application/json"),
+        (status = FORBIDDEN, description = "L'utente non è autorizzato a svolgere questa operazione", body = ApiError, content_type = "application/json"),
+        (status = NOT_FOUND, description = "Video non trovato", body = ApiError, content_type = "application/json")
+    ),
+    security(
+        ("jwt_token" = [])
+    )
+)]
 #[get("/start")]
 pub async fn init_streams_capture(state: &rocket::State<StreamMap>) {
     match player::list_cameras().await {
         Ok(cams) => {
             println!("Camera list saved");
-            let cams_lock=cams.lock().await;
+            let cams_lock = cams.lock().await;
             for (name, url) in cams_lock.iter() {
                 match player::stream(url.clone(), name.clone(), state).await {
                     Ok(_) => println!("Started stream for: {}", url),
                     Err(e) => eprintln!("Error starting stream {}: {}", name, e),
                 }
             }
-        },
+        }
         Err(e) => eprintln!("Error getting camera list: {}", e),
     }
 }
@@ -350,25 +364,38 @@ pub async fn init_streams_capture(state: &rocket::State<StreamMap>) {
 /// - Il responsabile della società sportiva
 /// - Un allenatore della squadra
 /// - Chiunque altro abbia l'accesso alle telecamere
+#[utoipa::path(
+    context_path = "/player",      // Path di base che viene aggiunto all'inizio del path specificato nella macro get
+    tags = ["Dati registrati"],
+    responses(
+        (status = OK, description = "Stream terminata con successo", body = String),
+        (status = BAD_REQUEST, description = "Errore nei dati forniti", body = ApiError, content_type = "application/json"),
+        (status = UNAUTHORIZED, description = "Non è stato fornito un token di autenticazione", body = ApiError, content_type = "application/json"),
+        (status = FORBIDDEN, description = "L'utente non è autorizzato a svolgere questa operazione", body = ApiError, content_type = "application/json"),
+        (status = NOT_FOUND, description = "Video non trovato", body = ApiError, content_type = "application/json")
+    ),
+    security(
+        ("jwt_token" = [])
+    )
+)]
 #[get("/stop")]
 pub async fn end_streams_capture(state: &rocket::State<StreamMap>) {
     let mut streams = state.lock().await;
 
     match player::list_cameras().await {
         Ok(cams) => {
-            let cams_lock=cams.lock().await;
+            let cams_lock = cams.lock().await;
             for (_name, url) in cams_lock.iter() {
                 if let Some(mut child) = streams.remove(url) {
                     match child.kill() {
                         Ok(_) => println!("Stream stopped"),
-                        Err(e) => eprintln!("Failed to stop FFmpeg process: {}", e)
+                        Err(e) => eprintln!("Failed to stop FFmpeg process: {}", e),
                     }
-                }
-                else {
+                } else {
                     println!("Stream not found");
                 }
             }
-        },
-        Err(e) => eprintln!("Error getting camera list: {}", e)
+        }
+        Err(e) => eprintln!("Error getting camera list: {}", e),
     }
 }

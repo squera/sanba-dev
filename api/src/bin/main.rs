@@ -1,14 +1,14 @@
 #[macro_use]
 extern crate rocket;
 
-use std::collections::HashMap;
-use std::net::{IpAddr, Ipv4Addr};
-use std::process::Child;
-use std::sync::Arc;
 use api::{
     booking_handlers, club_handlers, game_handlers, person_handlers, recorded_data_handlers,
     recording_session_handlers, team_handlers, training_handlers, user_handlers,
 };
+use rocket::fairing::{Fairing, Info, Kind};
+use rocket::fs::FileServer;
+use rocket::http::Header;
+use rocket::tokio::sync::Mutex;
 use rocket::{
     config::LogLevel,
     fairing::AdHoc,
@@ -17,9 +17,11 @@ use rocket::{
         Figment,
     },
 };
-use rocket::fs::FileServer;
-use rocket::tokio::sync::Mutex;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::net::{IpAddr, Ipv4Addr};
+use std::process::Child;
+use std::sync::Arc;
 use utoipa::{
     openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
     Modify, OpenApi,
@@ -114,6 +116,9 @@ type Cams = Arc<Mutex<Vec<(String, String)>>>;
         recorded_data_handlers::delete_timestamp_handler,
         recorded_data_handlers::create_clip_handler,
         recorded_data_handlers::share_video_handler,
+
+        recorded_data_handlers::end_streams_capture,
+        recorded_data_handlers::init_streams_capture,
     ),
     modifiers(&SecurityAddon)
 )]
@@ -156,6 +161,29 @@ impl Default for RocketConfig {
     }
 }
 
+// CORS Fairing
+pub struct Cors;
+
+#[rocket::async_trait]
+impl Fairing for Cors {
+    fn info(&self) -> Info {
+        Info {
+            name: "Add CORS headers",
+            kind: Kind::Response,
+        }
+    }
+
+    async fn on_response<'r>(
+        &self,
+        _request: &'r rocket::Request<'_>,
+        response: &mut rocket::Response<'r>,
+    ) {
+        response.set_header(Header::new("Access-Control-Allow-Origin", "*"));
+        response.set_header(Header::new("Access-Control-Allow-Methods", "GET, OPTIONS"));
+        response.set_header(Header::new("Access-Control-Allow-Headers", "Content-Type"));
+    }
+}
+
 #[launch]
 fn rocket() -> _ {
     let streams: StreamMap = Arc::new(Mutex::new(HashMap::new()));
@@ -183,7 +211,10 @@ fn rocket() -> _ {
 
     rocket::custom(figment)
         .attach(AdHoc::config::<RocketConfig>())
+        .attach(Cors)
         .manage(streams)
+        .mount("/static", FileServer::from("./static"))
+        .mount("/dash", FileServer::from("./infrastructure/tmp/dash")) // Serve DASH files
         .mount(
             "/person",
             routes![
