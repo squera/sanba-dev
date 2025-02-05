@@ -105,14 +105,16 @@ pub fn find_recording_session_handler(
         ("jwt_token" = [])
     )
 )]
-#[get("/list-by-booking/<booking_id>")]
+#[get("/list-by-booking/<booking_id>?<limit>&<offset>")]
 pub fn list_recording_sessions_by_booking_handler(
     key: Result<JWT, ApiError>,
     booking_id: i64,
+    limit: Option<i64>,
+    offset: Option<i64>,
 ) -> Result<Json<Vec<RecordingSessionWithCameras>>, ApiError> {
     let key = key?;
 
-    let res = authorize_list_recording_sessions_by_booking(key.claims, booking_id)?;
+    let res = authorize_list_recording_sessions_by_booking(key.claims, booking_id, limit, offset)?;
     Ok(Json(res))
 }
 

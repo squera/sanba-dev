@@ -28,12 +28,25 @@ pub fn find_person(person_id: i64) -> Result<PersonWithUser, ApiError> {
     });
 }
 
-pub fn list_people() -> Result<Vec<PersonWithUser>, ApiError> {
+pub fn list_people(
+    limit: Option<i64>,
+    offset: Option<i64>,
+) -> Result<Vec<PersonWithUser>, ApiError> {
     use domain::schema::person;
 
     let connection = &mut establish_connection();
 
-    let all_people = person::table.select(Person::as_select()).load(connection)?;
+    let mut query = person::table.select(Person::as_select()).into_boxed();
+
+    if let Some(limit) = limit {
+        query = query.limit(limit);
+    }
+
+    if let Some(offset) = offset {
+        query = query.offset(offset);
+    }
+
+    let all_people = query.load(connection)?;
 
     // get all users for all people
     let users = User::belonging_to(&all_people)

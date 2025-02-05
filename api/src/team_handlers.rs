@@ -89,14 +89,17 @@ pub fn find_team_handler(key: Result<JWT, ApiError>, team_id: i64) -> Result<Jso
         ("jwt_token" = [])
     )
 )]
-#[get("/list", data = "<sport>")]
+#[get("/list?<sport>&<club_id>&<limit>&<offset>")]
 pub fn list_teams_handler(
     key: Result<JWT, ApiError>,
     sport: Option<String>,
+    club_id: Option<String>,
+    limit: Option<i64>,
+    offset: Option<i64>,
 ) -> Result<Json<Vec<Team>>, ApiError> {
     let _key = key?;
-    // TODO aggiungere filtro per sport, società sportiva, paginazione
-    let res = list_teams()?;
+
+    let res = list_teams(sport, club_id, limit, offset)?;
     Ok(Json(res))
 }
 

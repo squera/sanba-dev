@@ -9,7 +9,7 @@ use application::{
 };
 use domain::models::others::{BookingWithEvent, NewBookingData};
 use rocket::{delete, get, post, put, serde::json::Json};
-use shared::response_models::ApiError;
+use shared::{response_models::ApiError, NaiveDateTimeForm};
 
 /// Inserisce una nuova prenotazione
 ///
@@ -93,14 +93,26 @@ pub fn find_booking_handler(
         ("jwt_token" = [])
     )
 )]
-#[get("/list", data = "<sport>")]
+#[get("/list?<author_id>&<from_date>&<to_date>&<sport>&<limit>&<offset>")]
 pub fn list_bookings_handler(
     key: Result<JWT, ApiError>,
+    author_id: Option<i64>,
+    from_date: Option<NaiveDateTimeForm>,
+    to_date: Option<NaiveDateTimeForm>,
     sport: Option<String>,
+    limit: Option<i64>,
+    offset: Option<i64>,
 ) -> Result<Json<Vec<BookingWithEvent>>, ApiError> {
     let _key = key?;
-    // TODO implementare la ricerca per sport
-    let res = list_bookings()?;
+
+    let res = list_bookings(
+        author_id,
+        from_date.map(|x| x.0),
+        to_date.map(|x| x.0),
+        sport,
+        limit,
+        offset,
+    )?;
     Ok(Json(res))
 }
 

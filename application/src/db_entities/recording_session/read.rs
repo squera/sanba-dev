@@ -1,3 +1,4 @@
+use chrono::offset;
 use diesel::prelude::*;
 use domain::{
     models::{
@@ -56,9 +57,11 @@ pub fn find_recording_session(session_id: i64) -> Result<RecordingSessionWithCam
 pub fn authorize_list_recording_sessions_by_booking(
     requesting_user: Claims,
     booking_id: i64,
+    limit: Option<i64>,
+    offset: Option<i64>,
 ) -> Result<Vec<RecordingSessionWithCameras>, ApiError> {
     if can_read_recording_session(requesting_user.subject_id, booking_id)? {
-        return list_recording_sessions_by_booking(booking_id);
+        return list_recording_sessions_by_booking(booking_id, limit, offset);
     } else {
         return Err(ApiError {
             http_status: Status::Forbidden,
@@ -74,14 +77,27 @@ pub fn authorize_list_recording_sessions_by_booking(
 
 pub fn list_recording_sessions_by_booking(
     booking_id: i64,
+    limit: Option<i64>,
+    offset: Option<i64>,
 ) -> Result<Vec<RecordingSessionWithCameras>, ApiError> {
     use domain::schema::{camera_session, recording_session};
 
     let connection = &mut establish_connection();
 
-    let mut recording_sessions: Vec<RecordingSessionWithCameras> = recording_session::table
+    let mut query = recording_session::table
         .filter(recording_session::booking_id.eq(booking_id))
         .select(RecordingSession::as_select())
+        .into_boxed();
+
+    if let Some(limit) = limit {
+        query = query.limit(limit);
+    }
+
+    if let Some(offset) = offset {
+        query = query.offset(offset);
+    }
+
+    let mut recording_sessions: Vec<RecordingSessionWithCameras> = query
         .load(connection)?
         .into_iter()
         .map(|recording_session| RecordingSessionWithCameras {

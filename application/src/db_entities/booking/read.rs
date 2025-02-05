@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use domain::models::{
     full_tables::{Booking, Game, Training},
@@ -46,20 +47,55 @@ pub fn find_booking(booking_id: i64) -> Result<BookingWithEvent, ApiError> {
     }
 }
 
-pub fn list_bookings() -> Result<Vec<BookingWithEvent>, ApiError> {
+pub fn list_bookings(
+    author_id: Option<i64>,
+    from_date: Option<NaiveDateTime>,
+    to_date: Option<NaiveDateTime>,
+    sport: Option<String>,
+    limit: Option<i64>,
+    offset: Option<i64>,
+) -> Result<Vec<BookingWithEvent>, ApiError> {
     use domain::schema::{booking, game, training};
 
     let connection = &mut establish_connection();
 
-    let bookings_with_events: Vec<(Booking, Option<Game>, Option<Training>)> = booking::table
+    let mut query = booking::table.into_boxed();
+
+    if let Some(author_id) = author_id {
+        query = query.filter(booking::author_id.eq(author_id));
+    }
+
+    if let Some(from_date) = from_date {
+        query = query.filter(booking::start_datetime.ge(from_date));
+    }
+
+    if let Some(to_date) = to_date {
+        query = query.filter(booking::end_datetime.le(to_date));
+    }
+
+    if let Some(sport) = sport {
+        query = query.filter(booking::sport.eq(sport));
+    }
+
+    let mut query = query
         .left_join(game::table)
         .left_join(training::table)
         .select((
             Booking::as_select(),
             Option::<Game>::as_select(),
             Option::<Training>::as_select(),
-        ))
-        .load::<(Booking, Option<Game>, Option<Training>)>(connection)?;
+        ));
+
+    if let Some(limit) = limit {
+        query = query.limit(limit);
+    }
+
+    if let Some(offset) = offset {
+        query = query.offset(offset);
+    }
+
+    let bookings_with_events: Vec<(Booking, Option<Game>, Option<Training>)> =
+        query.load::<(Booking, Option<Game>, Option<Training>)>(connection)?;
 
     let res = bookings_with_events
         .into_iter()

@@ -16,14 +16,24 @@ pub fn find_club(club_id: String) -> Result<SportsClub, ApiError> {
     return Ok(club);
 }
 
-pub fn list_clubs() -> Result<Vec<SportsClub>, ApiError> {
+pub fn list_clubs(limit: Option<i64>, offset: Option<i64>) -> Result<Vec<SportsClub>, ApiError> {
     use domain::schema::sports_club;
 
     let connection = &mut establish_connection();
 
-    let clubs = sports_club::table
+    let mut query = sports_club::table
         .select(SportsClub::as_select())
-        .load(connection)?;
+        .into_boxed();
+
+    if let Some(limit) = limit {
+        query = query.limit(limit);
+    }
+
+    if let Some(offset) = offset {
+        query = query.offset(offset);
+    }
+
+    let clubs = query.load(connection)?;
 
     return Ok(clubs);
 }

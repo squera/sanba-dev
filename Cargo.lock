@@ -46,6 +46,7 @@ name = "api"
 version = "0.1.0"
 dependencies = [
  "application",
+ "chrono",
  "domain",
  "dotenvy",
  "infrastructure",

@@ -96,11 +96,15 @@ pub fn find_club_handler(
         ("jwt_token" = [])
     )
 )]
-#[get("/list")]
-pub fn list_clubs_handler(key: Result<JWT, ApiError>) -> Result<Json<Vec<SportsClub>>, ApiError> {
+#[get("/list?<limit>&<offset>")]
+pub fn list_clubs_handler(
+    key: Result<JWT, ApiError>,
+    limit: Option<i64>,
+    offset: Option<i64>,
+) -> Result<Json<Vec<SportsClub>>, ApiError> {
     let _key = key?;
 
-    let res = list_clubs()?;
+    let res = list_clubs(limit, offset)?;
     Ok(Json(res))
 }
 

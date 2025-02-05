@@ -1,7 +1,8 @@
 use application::authentication::JWT;
 use application::db_entities::person::create::create_person;
-use application::db_entities::person::read;
-use application::db_entities::person::read::list_people_by_club;
+use application::db_entities::person::read::{
+    find_person, get_profiles, list_people, list_people_by_club, list_people_by_teams,
+};
 use application::db_entities::person::update::{
     authorize_add_profile, authorize_join_team, authorize_leave_team, authorize_update_person,
 };
@@ -44,7 +45,7 @@ pub fn find_person_handler(
 ) -> Result<Json<PersonWithUser>, ApiError> {
     let _key = key?;
 
-    let res = read::find_person(person_id)?;
+    let res = find_person(person_id)?;
     Ok(Json(res))
 }
 
@@ -78,7 +79,7 @@ pub fn get_profiles_handler(
 ) -> Result<Json<ProfileSet>, ApiError> {
     let _key = key?;
 
-    let res = read::get_profiles(person_id)?;
+    let res = get_profiles(person_id)?;
     Ok(Json(res))
 }
 
@@ -101,13 +102,15 @@ pub fn get_profiles_handler(
         ("jwt_token" = [])
     )
 )]
-#[get("/list")]
+#[get("/list?<limit>&<offset>")]
 pub fn list_people_handler(
     key: Result<JWT, ApiError>,
+    limit: Option<i64>,
+    offset: Option<i64>,
 ) -> Result<Json<Vec<PersonWithUser>>, ApiError> {
     let _key = key?;
 
-    let res = read::list_people()?;
+    let res = list_people(limit, offset)?;
     Ok(Json(res))
 }
 
@@ -140,7 +143,7 @@ pub fn list_people_by_team_handler(
 ) -> Result<Json<TeamStaff>, ApiError> {
     let _key = key?;
 
-    let res = read::list_people_by_teams(vec![team_id])?
+    let res = list_people_by_teams(vec![team_id])?
         .into_iter()
         .next()
         .unwrap();
